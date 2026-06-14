@@ -1,18 +1,17 @@
 terraform {
   required_providers { aws = { source = "hashicorp/aws", version = "~> 5.0" } }
-  # Uncomment the following when you have created the state bucket
-  # backend "s3" {
-  #   bucket = "ssp-terraform-state-bucket"
-  #   key    = "infrastructure/base/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+  backend "s3" {
+    bucket = "ssp-terraform-state-bucket"
+    key    = "infrastructure/base/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" { region = var.aws_region }
 
 # --- VPC & Networking ---
 module "vpc" {
-  source = "../terraform-infra-child/modules/vpc"
+  source = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/vpc?ref=v0.1.0"
 
   vpc_name       = "ssp-vpc-${var.environment}"
   environment    = var.environment
@@ -24,7 +23,7 @@ module "vpc" {
 
 # --- Shared ALB ---
 module "alb" {
-  source         = "../terraform-infra-child/modules/alb"
+  source         = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/alb?ref=v0.1.0"
   vpc_id         = module.vpc.vpc_id
   public_subnets = module.vpc.public_subnets
   environment    = var.environment
@@ -37,29 +36,27 @@ resource "aws_ecs_cluster" "main" {
 
 # --- Databases (DocumentDB, RDS, ElastiCache) ---
 module "documentdb" {
-  source          = "../terraform-infra-child/modules/documentdb"
+  source          = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/documentdb?ref=v0.1.0"
   environment     = var.environment
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
 }
 
 module "rds" {
-  source          = "../terraform-infra-child/modules/rds"
+  source          = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/rds?ref=v0.1.0"
   environment     = var.environment
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
 }
 
 module "elasticache" {
-  source          = "../terraform-infra-child/modules/elasticache"
+  source          = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/elasticache?ref=v0.1.0"
   environment     = var.environment
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
 }
 
 # --- Self-Managed Kafka (EC2) Placeholder ---
-# In a real setup, you would define an EC2 instance, EBS volumes, and use user_data
-# to install and configure Kafka/Zookeeper.
 resource "aws_instance" "kafka_broker" {
   ami           = "ami-0c7217cdde317cfec" # Example Ubuntu AMI, change as needed
   instance_type = "t3.small"
