@@ -47,6 +47,8 @@ module "rds" {
   environment     = var.environment
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
+  db_name         = "sspprd001"
+  db_username     = "sspprd001_owner"
 }
 
 module "elasticache" {
@@ -56,11 +58,71 @@ module "elasticache" {
   private_subnets = module.vpc.private_subnets
 }
 
-# --- Self-Managed Kafka (EC2) Placeholder ---
+# --- IAM Role for EC2 SSM Access ---
+resource "aws_iam_role" "ec2_ssm_role" {
+  name = "ssp-ec2-ssm-role-${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action = "sts:AssumeRole",
+      Effect = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_policy_attachment" {
+  role       = aws_iam_role.ec2_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ec2_ssm_profile" {
+  name = "ssp-ec2-ssm-profile-${var.environment}"
+  role = aws_iam_role.ec2_ssm_role.name
+}
+
+# --- Self-Managed Kafka (EC2) ---
+resource "aws_security_group" "kafka" {
+  name        = "ssp-kafka-sg-${var.environment}"
+  description = "Allow traffic to Kafka"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    protocol    = "tcp"
+    from_port   = 9092
+    to_port     = 9092
+    cidr_blocks = ["10.0.0.0/16"] # Allow all traffic within VPC
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  owners = ["099720109477"] # Canonical
+}
+
 resource "aws_instance" "kafka_broker" {
-  ami           = "ami-0c7217cdde317cfec" # Example Ubuntu AMI, change as needed
+  ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.small"
   subnet_id     = module.vpc.private_subnets[0]
+  vpc_security_group_ids = [aws_security_group.kafka.id]
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm_profile.name
+
+  user_data = file("${path.module}/kafka_setup_kraft.sh")
 
   tags = {
     Name = "ssp-kafka-broker-${var.environment}"
