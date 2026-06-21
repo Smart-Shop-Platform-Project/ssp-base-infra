@@ -14,26 +14,31 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                sh 'terraform init'
+                // Initialize using the external backend.conf file
+                sh 'terraform init -backend-config=backend.conf'
                 sh 'terraform workspace select dev || terraform workspace new dev'
             }
         }
 
         stage('Terraform Plan') {
             steps {
+                // Generate a plan and save it to 'tfplan' for a predictable apply
+                // Note: Ensure all required variables are passed if not in a .tfvars file
                 sh 'terraform plan -out=tfplan'
             }
         }
 
         stage('Approval') {
             steps {
-                input message: 'Apply base infrastructure changes?', ok: 'Apply'
+                // Pause for manual review of the generated plan
+                input message: 'Review the terraform plan. Proceed with apply?', ok: 'Apply'
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                sh 'terraform apply tfplan'
+                // Apply the exact plan saved in the previous stage
+                sh 'terraform apply -auto-approve tfplan'
             }
         }
     }

@@ -1,10 +1,6 @@
 terraform {
   required_providers { aws = { source = "hashicorp/aws", version = "~> 5.0" } }
-  backend "s3" {
-    bucket = "ssp-terraform-state-bucket"
-    key    = "infrastructure/base/terraform.tfstate"
-    region = "us-east-1"
-  }
+  backend "s3" {}
 }
 
 provider "aws" { region = var.aws_region }
