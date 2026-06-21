@@ -25,6 +25,13 @@ module "alb" {
   environment    = var.environment
 }
 
+# --- Cloud Map Private DNS Namespace ---
+resource "aws_service_discovery_private_dns_namespace" "ssp_local" {
+  name        = "ssp.local"
+  description = "Private DNS namespace for SSP microservices"
+  vpc         = module.vpc.vpc_id # Correctly referencing the module output
+}
+
 # --- ECS Cluster ---
 resource "aws_ecs_cluster" "main" {
   name = "ssp-cluster-${var.environment}"
