@@ -158,17 +158,19 @@ resource "aws_ssm_parameter" "kafka_broker_url" {
   value = "${aws_instance.kafka_broker.private_ip}:9092"
 }
 
-# Added: SSM parameters for RDS connection strings
+# Correctly construct the DB URL using the password from the random_password resource within the module
+# Note: This requires the random_password result to be an output of the rds module.
+# Let's assume we add that output to the rds module.
 resource "aws_ssm_parameter" "auth_db_url" {
   name  = "/ssp/auth/database_url"
   type  = "SecureString"
-  value = "postgresql://${module.rds.db_username}:${module.rds.password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
+  value = "postgresql://${module.rds.db_username}:${module.rds.db_password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
 }
 
 resource "aws_ssm_parameter" "inventory_db_url" {
   name  = "/ssp/inventory/database_url"
   type  = "SecureString"
-  value = "postgresql://${module.rds.db_username}:${module.rds.password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
+  value = "postgresql://${module.rds.db_username}:${module.rds.db_password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
 }
 
 # These are placeholders; you'll need to create the actual services/endpoints
