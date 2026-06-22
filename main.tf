@@ -1,6 +1,10 @@
 terraform {
   required_providers { aws = { source = "hashicorp/aws", version = "~> 5.0" } }
-  backend "s3" {}
+  backend "s3" {
+    bucket = "ssp-terraform-state-bucket"
+    key    = "infrastructure/base/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" { region = var.aws_region }
@@ -25,13 +29,6 @@ module "alb" {
   environment    = var.environment
 }
 
-# --- Cloud Map Private DNS Namespace ---
-resource "aws_service_discovery_private_dns_namespace" "ssp_local" {
-  name        = "ssp.local"
-  description = "Private DNS namespace for SSP microservices"
-  vpc         = module.vpc.vpc_id # Correctly referencing the module output
-}
-
 # --- ECS Cluster ---
 resource "aws_ecs_cluster" "main" {
   name = "ssp-cluster-${var.environment}"
@@ -43,6 +40,8 @@ module "documentdb" {
   environment     = var.environment
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
+  cluster_name    = "ssp-docdb"
+  db_username     = "sspdocdb_owner"
 }
 
 module "rds" {
@@ -150,6 +149,19 @@ resource "aws_ssm_parameter" "kafka_broker_url" {
   name  = "/ssp/shared/kafka_broker_url"
   type  = "String"
   value = "${aws_instance.kafka_broker.private_ip}:9092"
+}
+
+# Added: SSM parameters for RDS connection strings
+resource "aws_ssm_parameter" "auth_db_url" {
+  name  = "/ssp/auth/database_url"
+  type  = "SecureString"
+  value = "postgresql://${module.rds.db_username}:${module.rds.password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
+}
+
+resource "aws_ssm_parameter" "inventory_db_url" {
+  name  = "/ssp/inventory/database_url"
+  type  = "SecureString"
+  value = "postgresql://${module.rds.db_username}:${module.rds.password}@${module.rds.rds_endpoint}/${module.rds.db_name}"
 }
 
 # These are placeholders; you'll need to create the actual services/endpoints
