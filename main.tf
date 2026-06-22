@@ -21,6 +21,13 @@ module "vpc" {
   azs            = ["${var.aws_region}a", "${var.aws_region}b"]
 }
 
+# --- Service Discovery ---
+resource "aws_service_discovery_private_dns_namespace" "ssp" {
+  name        = "ssp.local"
+  description = "Private DNS namespace for the Smart Shop Platform"
+  vpc         = module.vpc.vpc_id
+}
+
 # --- Shared ALB ---
 module "alb" {
   source         = "git::https://github.com/DeathGod049/terraform-infra-child.git//modules/alb?ref=v0.1.0"

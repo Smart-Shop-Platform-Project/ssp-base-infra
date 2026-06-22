@@ -22,10 +22,9 @@ output "alb_listener_arn" {
   value = module.alb.alb_listener_arn
 }
 
-# Cloud Map Output for Microservices
 output "cloudmap_namespace_id" {
-  description = "The ID of the Private DNS Namespace for Service Discovery"
-  value       = aws_service_discovery_private_dns_namespace.ssp_local.id
+  description = "The ID of the ssp.local private DNS namespace for service discovery."
+  value       = aws_service_discovery_private_dns_namespace.ssp.id
 }
 
 # The following endpoints are also exported to SSM Parameter Store,
